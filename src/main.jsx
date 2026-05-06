@@ -63,9 +63,9 @@ function App() {
       <header className="header">
         <div className="headerInner">
           <div className="brand">
-            <div className="brandIcon"><Building2 size={24} /></div>
+            <div className="brandLogo"><img src="/logo-el-pilar.jpg" alt="Grupo El Pilar Inmuebles" /></div>
             <div>
-              <div className="brandName">INMOBILIARIA EL PILAR</div>
+              <div className="brandName">GRUPO EL PILAR INMUEBLES</div>
               <div className="brandTag">Inmobiliaria en Toledo · Venta · Alquiler · Valoración</div>
             </div>
           </div>
@@ -93,7 +93,7 @@ function App() {
           <div className="heroPattern" />
           <div className="heroInner">
             <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55 }}>
-              <div className="eyebrow">www.inmobiliariaelpilar.com · Inmobiliaria en Toledo capital</div>
+              <div className="eyebrow">www.inmobiliariaelpilar.com · Avenida de América nº 2 - Toledo</div>
               <h1>Vendemos su vivienda en Toledo con seriedad, cercanía y estrategia.</h1>
               <p>Inmobiliaria El Pilar centra su actividad en Toledo capital, ofreciendo una gestión profesional para propietarios que quieren vender o alquilar su vivienda con valoración realista, máxima visibilidad y acompañamiento completo hasta la firma.</p>
               <div className="heroButtons">
@@ -203,12 +203,12 @@ function App() {
         <section id="contacto" className="contact">
           <div>
             <h3>INMOBILIARIA EL PILAR</h3>
-            <p>Inmobiliaria centrada principalmente en Toledo capital, especializada en compraventa y alquiler de inmuebles.</p>
+            <p>Inmobiliaria centrada principalmente en Toledo capital, especializada en compraventa y alquiler de inmuebles. Oficina en Avenida de América nº 2 - 45004 Toledo.</p>
           </div>
           <div className="contactLinks">
             <a href={WHATSAPP_URL} target="_blank" rel="noreferrer"><Phone size={18} /> WhatsApp directo</a>
             <div><Mail size={18} /> jcebrian@elpilar.es</div>
-            <div><MapPin size={18} /> Toledo capital</div>
+            <div><MapPin size={18} /> Avenida de América nº 2 - 45004 Toledo</div>
             <a href={FACEBOOK_URL} target="_blank" rel="noreferrer"><Building2 size={18} /> Facebook Inmobiliaria El Pilar</a>
             <a href={IDEALISTA_URL} target="_blank" rel="noreferrer"><Home size={18} /> Idealista Inmobiliaria El Pilar</a>
           </div>
