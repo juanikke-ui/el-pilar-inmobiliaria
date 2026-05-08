@@ -1,7 +1,9 @@
 import { Client } from "basic-ftp";
 import fs from "fs/promises";
 
-export const config = { maxDuration: 30 };
+export const config = {
+  maxDuration: 30
+};
 
 function clean(value = "") {
   return String(value)
@@ -17,34 +19,72 @@ function clean(value = "") {
     .trim();
 }
 
+function valid(value) {
+  return (
+    value &&
+    value !== "false" &&
+    value !== "true" &&
+    value !== "0"
+  );
+}
+
 function tag(xml, name) {
-  const m = xml.match(new RegExp(`<${name}[^>]*>([\\s\\S]*?)<\\/${name}>`, "i"));
+  const m = xml.match(
+    new RegExp(`<${name}[^>]*>([\\s\\S]*?)<\\/${name}>`, "i")
+  );
   return m ? m[1] : "";
 }
 
 function blocks(xml, name) {
-  return [...xml.matchAll(new RegExp(`<${name}[^>]*>([\\s\\S]*?)<\\/${name}>`, "gi"))].map(m => m[1]);
+  return [
+    ...xml.matchAll(
+      new RegExp(`<${name}[^>]*>([\\s\\S]*?)<\\/${name}>`, "gi")
+    )
+  ].map(m => m[1]);
 }
 
 function spanishComment(ad) {
   const comments = blocks(ad, "adComments");
-  const spanish = comments.find(c => clean(tag(c, "language")) === "0") || comments[0] || "";
+
+  const spanish =
+    comments.find(
+      c => clean(tag(c, "language")) === "0"
+    ) || comments[0] || "";
+
   return clean(tag(spanish, "propertyComment"));
 }
 
 function firstPrice(ad) {
-  const rent = clean(tag(tag(tag(ad, "prices"), "byOperation"), "RENT")).match(/<price[^>]*>([\s\S]*?)<\/price>/i)?.[1];
-  const sale = clean(tag(tag(tag(ad, "prices"), "byOperation"), "SALE")).match(/<price[^>]*>([\s\S]*?)<\/price>/i)?.[1];
-  const price = sale || rent || clean(tag(ad, "price"));
-  if (!price) return "Consultar";
-  const n = Number(String(price).replace(/[^\d.,]/g, "").replace(",", "."));
-  return Number.isFinite(n)
-    ? new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n) + (rent ? "/mes" : "")
-    : price;
+  const saleMatch = ad.match(
+    /<SALE>[\s\S]*?<price[^>]*>([\s\S]*?)<\/price>/i
+  );
+
+  const rentMatch = ad.match(
+    /<RENT>[\s\S]*?<price[^>]*>([\s\S]*?)<\/price>/i
+  );
+
+  const raw = saleMatch?.[1] || rentMatch?.[1] || "";
+
+  const number = Number(
+    String(raw)
+      .replace(/[^\d.,]/g, "")
+      .replace(",", ".")
+  );
+
+  if (!Number.isFinite(number)) {
+    return "Consultar";
+  }
+
+  return new Intl.NumberFormat("es-ES", {
+    style: "currency",
+    currency: "EUR",
+    maximumFractionDigits: 0
+  }).format(number) + (rentMatch ? "/mes" : "");
 }
 
 function parseAd(ad) {
   const id = clean(tag(ad, "id"));
+
   const comment = spanishComment(ad);
 
   const pictures = blocks(ad, "pictures")
@@ -54,24 +94,50 @@ function parseAd(ad) {
   const area = clean(tag(ad, "propertyArea"));
   const rooms = clean(tag(ad, "roomNumber"));
   const baths = clean(tag(ad, "bathNumber"));
-  const zone = clean(tag(tag(ad, "location"), "name")) || "Toledo";
+
+  const detail = [
+    valid(rooms) ? `${rooms} hab.` : "",
+    valid(baths) ? `${baths} baños` : "",
+    valid(area) ? `${area} m²` : ""
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  const zone =
+    clean(tag(tag(ad, "location"), "name")) ||
+    "Toledo";
 
   return {
     id,
-    title: comment.split(/[.!?]/)[0]?.slice(0, 95) || "Inmueble en Toledo",
-    description: comment.slice(0, 220) + (comment.length > 220 ? "…" : ""),
+    title:
+      comment.split(/[.!?]/)[0]?.slice(0, 95) ||
+      "Inmueble en Toledo",
+
+    description:
+      comment.slice(0, 220) +
+      (comment.length > 220 ? "…" : ""),
+
     price: firstPrice(ad),
+
     location: zone,
-    detail: [rooms && `${rooms} hab.`, baths && `${baths} baños`, area && `${area} m²`].filter(Boolean).join(" · "),
-    badge: ad.includes("<RENT>") ? "Alquiler" : "Venta",
+
+    detail,
+
+    badge: ad.includes("<RENT>")
+      ? "Alquiler"
+      : "Venta",
+
     image: pictures[0] || "",
+
     pictures,
+
     url: `https://www.idealista.com/inmueble/${id}/`
   };
 }
 
 export default async function handler(req, res) {
   const client = new Client();
+
   const tmpPath = "/tmp/idealista-feed.xml";
 
   try {
@@ -82,24 +148,38 @@ export default async function handler(req, res) {
       secure: false
     });
 
-    await client.downloadTo(tmpPath, process.env.IDEALISTA_FTP_FILE);
+    await client.downloadTo(
+      tmpPath,
+      process.env.IDEALISTA_FTP_FILE
+    );
 
-    const xml = await fs.readFile(tmpPath, "utf8");
-    const ads = blocks(xml.replace(/^\uFEFF/, ""), "ad");
+    const xml = await fs.readFile(
+      tmpPath,
+      "utf8"
+    );
 
-    const listings = ads.map(parseAd).filter(x => x.id);
+    const ads = blocks(
+      xml.replace(/^\uFEFF/, ""),
+      "ad"
+    );
+
+    const listings = ads
+      .map(parseAd)
+      .filter(x => x.id);
 
     return res.status(200).json({
       ok: true,
       count: listings.length,
       listings
     });
+
   } catch (error) {
     return res.status(500).json({
       ok: false,
       error: error.message,
       listings: []
     });
+
   } finally {
     client.close();
   }
