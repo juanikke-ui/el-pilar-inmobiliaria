@@ -1,11 +1,9 @@
 import { Client } from "basic-ftp";
 import fs from "fs/promises";
 
-export const config = {
-  maxDuration: 30
-};
+export const config = { maxDuration: 30 };
 
-function cleanText(value = "") {
+function clean(value = "") {
   return String(value)
     .replace(/<!\[CDATA\[/g, "")
     .replace(/\]\]>/g, "")
@@ -19,37 +17,56 @@ function cleanText(value = "") {
     .trim();
 }
 
-function getTag(xml, tag) {
-  const match = xml.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, "i"));
-  return match ? match[1] : "";
+function tag(xml, name) {
+  const m = xml.match(new RegExp(`<${name}[^>]*>([\\s\\S]*?)<\\/${name}>`, "i"));
+  return m ? m[1] : "";
 }
 
-function getBlocks(xml, tag) {
-  return [...xml.matchAll(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, "gi"))].map(m => m[1]);
+function blocks(xml, name) {
+  return [...xml.matchAll(new RegExp(`<${name}[^>]*>([\\s\\S]*?)<\\/${name}>`, "gi"))].map(m => m[1]);
+}
+
+function spanishComment(ad) {
+  const comments = blocks(ad, "adComments");
+  const spanish = comments.find(c => clean(tag(c, "language")) === "0") || comments[0] || "";
+  return clean(tag(spanish, "propertyComment"));
+}
+
+function firstPrice(ad) {
+  const rent = clean(tag(tag(tag(ad, "prices"), "byOperation"), "RENT")).match(/<price[^>]*>([\s\S]*?)<\/price>/i)?.[1];
+  const sale = clean(tag(tag(tag(ad, "prices"), "byOperation"), "SALE")).match(/<price[^>]*>([\s\S]*?)<\/price>/i)?.[1];
+  const price = sale || rent || clean(tag(ad, "price"));
+  if (!price) return "Consultar";
+  const n = Number(String(price).replace(/[^\d.,]/g, "").replace(",", "."));
+  return Number.isFinite(n)
+    ? new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n) + (rent ? "/mes" : "")
+    : price;
 }
 
 function parseAd(ad) {
-  const id = cleanText(getTag(ad, "id"));
-  const comment = cleanText(getTag(ad, "propertyComment"));
-  const price = cleanText(getTag(ad, "price"));
-  const area = cleanText(getTag(ad, "propertyArea"));
-  const rooms = cleanText(getTag(ad, "roomNumber"));
-  const baths = cleanText(getTag(ad, "bathNumber"));
-  const images = getBlocks(ad, "picture")
-    .map(p => cleanText(getTag(p, "multimediaPath")))
+  const id = clean(tag(ad, "id"));
+  const comment = spanishComment(ad);
+
+  const pictures = blocks(ad, "pictures")
+    .map(p => clean(tag(p, "multimediaPath")))
     .filter(Boolean);
+
+  const area = clean(tag(ad, "propertyArea"));
+  const rooms = clean(tag(ad, "roomNumber"));
+  const baths = clean(tag(ad, "bathNumber"));
+  const zone = clean(tag(tag(ad, "location"), "name")) || "Toledo";
 
   return {
     id,
-    title: comment ? comment.slice(0, 90) : "Inmueble en Toledo",
-    description: comment,
-    price,
-    area,
-    rooms,
-    baths,
-    image: images[0] || "",
-    pictures: images,
-    idealistaUrl: `https://www.idealista.com/inmueble/${id}/`
+    title: comment.split(/[.!?]/)[0]?.slice(0, 95) || "Inmueble en Toledo",
+    description: comment.slice(0, 220) + (comment.length > 220 ? "…" : ""),
+    price: firstPrice(ad),
+    location: zone,
+    detail: [rooms && `${rooms} hab.`, baths && `${baths} baños`, area && `${area} m²`].filter(Boolean).join(" · "),
+    badge: ad.includes("<RENT>") ? "Alquiler" : "Venta",
+    image: pictures[0] || "",
+    pictures,
+    url: `https://www.idealista.com/inmueble/${id}/`
   };
 }
 
@@ -68,11 +85,9 @@ export default async function handler(req, res) {
     await client.downloadTo(tmpPath, process.env.IDEALISTA_FTP_FILE);
 
     const xml = await fs.readFile(tmpPath, "utf8");
-    const ads = getBlocks(xml, "ad");
+    const ads = blocks(xml.replace(/^\uFEFF/, ""), "ad");
 
-    const listings = ads
-      .map(parseAd)
-      .filter(item => item.id);
+    const listings = ads.map(parseAd).filter(x => x.id);
 
     return res.status(200).json({
       ok: true,
@@ -83,7 +98,6 @@ export default async function handler(req, res) {
     return res.status(500).json({
       ok: false,
       error: error.message,
-      stack: error.stack,
       listings: []
     });
   } finally {
