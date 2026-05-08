@@ -1,40 +1,44 @@
-# Integración Idealista /tools FTP
+# Integración Idealista /tools por FTP
 
-La web incorpora una función serverless en `api/listings.js` que lee cada día el fichero XML/JSON de Idealista desde FTP y lo muestra en la sección Propiedades.
+Esta versión incluye una API interna de Vercel en `api/listings.js`.
 
-## Variables que debes configurar en Vercel
+La web llama a:
 
-En Vercel entra en:
+```txt
+/api/listings
+```
 
-`Project > Settings > Environment Variables`
+y esa función lee el XML diario de Idealista desde el FTP, transforma los anuncios y los muestra dentro de la sección **Propiedades**.
 
-Añade:
+## Variables de entorno en Vercel
 
-- `IDEALISTA_FTP_HOST`: `ftp.habitania.com`
-- `IDEALISTA_FTP_USER`: usuario FTP facilitado por Idealista
-- `IDEALISTA_FTP_PASSWORD`: contraseña FTP facilitada por Idealista
-- `IDEALISTA_FTP_FILE`: ruta/nombre del fichero XML o JSON. Puede dejarse vacío si el FTP solo contiene un fichero XML/JSON.
+En Vercel → Project → Settings → Environment Variables deben existir estas variables:
 
-Después pulsa `Redeploy`.
+```txt
+IDEALISTA_FTP_HOST=ftp.habitania.com
+IDEALISTA_FTP_USER=es83012081
+IDEALISTA_FTP_PASSWORD=********
+IDEALISTA_FTP_FILE=cilc46aca4afa26e9f1161f1bcda2b0d526c4ec2c99.xml
+```
+
+Activa las variables para **Production and Preview** y marca la contraseña como **Sensitive**.
+
+Después de cambiarlas, pulsa **Redeploy**.
+
+## Qué se muestra
+
+La integración muestra automáticamente:
+
+- foto principal,
+- precio,
+- tipo de operación,
+- zona,
+- habitaciones,
+- baños,
+- metros,
+- extracto de descripción en español,
+- botón “Ver ficha”.
 
 ## Seguridad
 
-No escribas la contraseña FTP en el código ni en GitHub. Debe estar solo en las variables de entorno de Vercel.
-
-## Cómo funciona
-
-- La web llama a `/api/listings`.
-- La función se conecta al FTP.
-- Lee el XML/JSON.
-- Normaliza título, precio, zona, características, imagen y enlace.
-- Si el feed falla, la web muestra la cartera destacada de reserva.
-
-## Cuando Idealista te confirme el nombre exacto del fichero
-
-Ponlo en `IDEALISTA_FTP_FILE`, por ejemplo:
-
-`inmobiliaria_el_pilar.xml`
-
-ó
-
-`anuncios.json`
+No subas nunca la contraseña FTP al código ni a GitHub. Solo debe estar en Environment Variables de Vercel.

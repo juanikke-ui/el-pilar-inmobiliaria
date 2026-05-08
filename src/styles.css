@@ -104,3 +104,9 @@ button, input, textarea, select { font: inherit; }
   .full, .privacy, .formButtons { grid-column: auto; }
   .contact { display: block; }
 }
+.syncStatus { margin-top: 12px; color: #475569; font-weight: 700; }
+.syncError { margin-top: 6px; color: #9f1239; font-size: 14px; }
+.propertyDetail { color: #334155; font-weight: 600; }
+.propertyDescription { color: #64748b; line-height: 1.55; font-size: 14px; margin-top: 12px; }
+.propertyButton { display: inline-flex; margin-top: 16px; border-radius: 999px; background: var(--pilar-granate); color: white; padding: 10px 16px; font-weight: 800; font-size: 14px; }
+.propertyButton:hover { background: var(--pilar-granate-dark); }

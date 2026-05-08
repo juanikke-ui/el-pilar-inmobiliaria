@@ -44,6 +44,7 @@ function App() {
   const [showPopup, setShowPopup] = useState(true);
   const [properties, setProperties] = useState(fallbackProperties);
   const [idealistaStatus, setIdealistaStatus] = useState('Cargando inmuebles de Idealista…');
+  const [listingError, setListingError] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -54,12 +55,17 @@ function App() {
         if (data.listings && data.listings.length) {
           setProperties(data.listings);
           setIdealistaStatus(`${data.listings.length} inmuebles activos sincronizados desde Idealista`);
+          setListingError('');
         } else {
           setIdealistaStatus('Mostrando cartera destacada. Revisa la configuración del feed de Idealista.');
+          if (data.error) setListingError(data.error);
         }
       })
       .catch(() => {
-        if (active) setIdealistaStatus('Mostrando cartera destacada. Feed de Idealista pendiente de sincronización.');
+        if (active) {
+          setIdealistaStatus('Mostrando cartera destacada. Feed de Idealista pendiente de sincronización.');
+          setListingError('No se ha podido leer el feed en este momento.');
+        }
       });
     return () => { active = false; };
   }, []);
@@ -164,20 +170,23 @@ function App() {
               <p className="sectionLabel">Propiedades destacadas</p>
               <h2>Cartera conectada con Idealista.</h2>
               <p className="syncStatus">{idealistaStatus}</p>
+              {listingError && <p className="syncError">{listingError}</p>}
             </div>
             <a href={IDEALISTA_URL} target="_blank" rel="noreferrer" className="btn outline small">Ver todos en Idealista <ArrowRight size={16} /></a>
           </div>
           <div className="propertyGrid">
             {properties.map((property) => (
-              <a key={property.id || property.title} href={property.url || IDEALISTA_URL} target="_blank" rel="noreferrer" className="propertyCard propertyLink">
+              <article key={property.id || property.title} className="propertyCard">
                 <div className="propertyImage" style={{ backgroundImage: `url(${property.image})` }}><span>{property.badge}</span></div>
                 <div className="propertyBody">
                   <h3>{property.title}</h3>
                   <p className="muted">{property.location}</p>
                   <strong>{property.price}</strong>
-                  <p>{property.detail}</p>
+                  <p className="propertyDetail">{property.detail}</p>
+                  {property.description && <p className="propertyDescription">{property.description}</p>}
+                  <a href={property.url || IDEALISTA_URL} target="_blank" rel="noreferrer" className="propertyButton">Ver ficha</a>
                 </div>
-              </a>
+              </article>
             ))}
           </div>
         </section>
