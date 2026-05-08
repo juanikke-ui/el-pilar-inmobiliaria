@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Building2, Home, KeyRound, CalendarDays, ShieldCheck, Phone, Mail, MapPin, ArrowRight, CheckCircle2, Menu, X, MessageCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -9,14 +9,15 @@ const IDEALISTA_URL = 'https://www.idealista.com/pro/inmobiliaria-el-pilar/';
 const WHATSAPP_URL = 'https://wa.me/34665569057?text=Hola%20Grupo%20El%20Pilar%2C%20quiero%20informaci%C3%B3n%20sobre%20vender%20mi%20vivienda%20en%20Toledo';
 const CALENDAR_URL = 'https://calendar.app.google/otXJiiL9zJe5h1ut7';
 
-const properties = [
+const fallbackProperties = [
   {
     title: 'Vivienda en Toledo capital',
     location: 'Toledo · Zona residencial',
     price: 'Ver en Idealista',
     detail: 'Inmueble publicado en Idealista · ficha actualizada',
     badge: 'Idealista',
-    image: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=900&q=80'
+    image: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=900&q=80',
+    url: IDEALISTA_URL
   },
   {
     title: 'Piso para entrar a vivir',
@@ -24,7 +25,8 @@ const properties = [
     price: 'Ver en Idealista',
     detail: 'Fotografías, precio y disponibilidad desde Idealista',
     badge: 'Venta',
-    image: 'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=900&q=80'
+    image: 'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=900&q=80',
+    url: IDEALISTA_URL
   },
   {
     title: 'Oportunidades en Toledo',
@@ -32,13 +34,35 @@ const properties = [
     price: 'Ver cartera completa',
     detail: 'Acceso directo a todos los anuncios activos',
     badge: 'Cartera',
-    image: 'https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=900&q=80'
+    image: 'https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=900&q=80',
+    url: IDEALISTA_URL
   }
 ];
 
 function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [showPopup, setShowPopup] = useState(true);
+  const [properties, setProperties] = useState(fallbackProperties);
+  const [idealistaStatus, setIdealistaStatus] = useState('Cargando inmuebles de Idealista…');
+
+  useEffect(() => {
+    let active = true;
+    fetch('/api/listings')
+      .then((res) => res.json())
+      .then((data) => {
+        if (!active) return;
+        if (data.listings && data.listings.length) {
+          setProperties(data.listings);
+          setIdealistaStatus(`${data.listings.length} inmuebles activos sincronizados desde Idealista`);
+        } else {
+          setIdealistaStatus('Mostrando cartera destacada. Revisa la configuración del feed de Idealista.');
+        }
+      })
+      .catch(() => {
+        if (active) setIdealistaStatus('Mostrando cartera destacada. Feed de Idealista pendiente de sincronización.');
+      });
+    return () => { active = false; };
+  }, []);
 
   return (
     <div className="page">
@@ -139,12 +163,13 @@ function App() {
             <div>
               <p className="sectionLabel">Propiedades destacadas</p>
               <h2>Cartera conectada con Idealista.</h2>
+              <p className="syncStatus">{idealistaStatus}</p>
             </div>
             <a href={IDEALISTA_URL} target="_blank" rel="noreferrer" className="btn outline small">Ver todos en Idealista <ArrowRight size={16} /></a>
           </div>
           <div className="propertyGrid">
             {properties.map((property) => (
-              <article key={property.title} className="propertyCard">
+              <a key={property.id || property.title} href={property.url || IDEALISTA_URL} target="_blank" rel="noreferrer" className="propertyCard propertyLink">
                 <div className="propertyImage" style={{ backgroundImage: `url(${property.image})` }}><span>{property.badge}</span></div>
                 <div className="propertyBody">
                   <h3>{property.title}</h3>
@@ -152,7 +177,7 @@ function App() {
                   <strong>{property.price}</strong>
                   <p>{property.detail}</p>
                 </div>
-              </article>
+              </a>
             ))}
           </div>
         </section>
